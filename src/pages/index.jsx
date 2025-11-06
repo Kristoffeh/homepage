@@ -1,6 +1,7 @@
 /* eslint-disable react/no-array-index-key */
 import classNames from "classnames";
 import BookmarksGroup from "components/bookmarks/group";
+import BookmarksManager from "components/bookmarks/manager";
 import ErrorBoundary from "components/errorboundry";
 import QuickLaunch from "components/quicklaunch";
 import ServicesGroup from "components/services/group";
@@ -233,6 +234,7 @@ function Home({ initialSettings }) {
 
   const [searching, setSearching] = useState(false);
   const [searchString, setSearchString] = useState("");
+  const [bookmarksManagerOpen, setBookmarksManagerOpen] = useState(false);
   const headerStyle = settings?.headerStyle || "underlined";
 
   useEffect(() => {
@@ -355,9 +357,32 @@ function Home({ initialSettings }) {
             ))}
           </div>
         )}
-        {bookmarkGroups?.length > 0 && (
-          <div key="bookmarks" id="bookmarks" className="flex flex-wrap m-4 sm:m-8 sm:mt-4 items-start mb-2">
-            {bookmarkGroups.map((group) => (
+        <div key="bookmarks" id="bookmarks" className="flex flex-wrap m-4 sm:m-8 sm:mt-4 items-start mb-2">
+          <div className="w-full flex justify-end mb-2">
+            <button
+              onClick={() => setBookmarksManagerOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-theme-200/50 dark:bg-theme-900/20 hover:bg-theme-300/50 dark:hover:bg-theme-900/40 text-theme-700 dark:text-theme-200 transition-colors"
+              title="Manage Bookmarks"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+              Manage Bookmarks
+            </button>
+          </div>
+          {bookmarkGroups?.length > 0 &&
+            bookmarkGroups.map((group) => (
               <BookmarksGroup
                 key={group.name}
                 bookmarks={group}
@@ -368,8 +393,7 @@ function Home({ initialSettings }) {
                 bookmarksStyle={settings.bookmarksStyle}
               />
             ))}
-          </div>
-        )}
+        </div>
       </>
     );
   }, [
@@ -481,6 +505,8 @@ function Home({ initialSettings }) {
         </div>
 
         {servicesAndBookmarksGroups}
+
+        <BookmarksManager isOpen={bookmarksManagerOpen} onClose={() => setBookmarksManagerOpen(false)} />
 
         <div id="footer" className="flex flex-col mt-auto p-8 w-full">
           <div id="style" className="flex w-full justify-end">

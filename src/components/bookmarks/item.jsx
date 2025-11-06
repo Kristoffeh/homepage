@@ -4,7 +4,7 @@ import { useContext } from "react";
 import { SettingsContext } from "utils/contexts/settings";
 
 export default function Item({ bookmark, iconOnly = false }) {
-  const description = bookmark.description ?? new URL(bookmark.href).hostname;
+  const description = bookmark.description && bookmark.description.trim() ? bookmark.description : null;
   const { settings } = useContext(SettingsContext);
 
   return (
@@ -46,9 +46,11 @@ export default function Item({ bookmark, iconOnly = false }) {
             </div>
             <div className="flex-1 overflow-hidden flex items-center justify-between rounded-r-md bookmark-text">
               <div className="pl-3 py-2 text-xs bookmark-name">{bookmark.name}</div>
-              <div className="shrink truncate px-2 py-2 text-theme-500 dark:text-theme-300 text-xs bookmark-description">
-                {description}
-              </div>
+              {description && (
+                <div className="shrink truncate px-2 py-2 text-theme-500 dark:text-theme-300 text-xs bookmark-description">
+                  {description}
+                </div>
+              )}
             </div>
           </div>
         )}
