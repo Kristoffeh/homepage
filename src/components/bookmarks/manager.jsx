@@ -1,7 +1,7 @@
-import { Dialog, Transition } from "@headlessui/react";
+import { Dialog, Transition, Combobox } from "@headlessui/react";
 import classNames from "classnames";
 import { Fragment, useState, useEffect, useMemo } from "react";
-import { MdClose, MdAdd, MdEdit, MdDelete, MdSave, MdSearch } from "react-icons/md";
+import { MdClose, MdAdd, MdEdit, MdDelete, MdSave, MdSearch, MdCheck, MdKeyboardArrowDown } from "react-icons/md";
 import useSWR, { mutate } from "swr";
 
 // Fetcher function for SWR
@@ -49,6 +49,8 @@ export default function BookmarksManager({ isOpen, onClose }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [groupNameQuery, setGroupNameQuery] = useState("");
+  const [showAllGroups, setShowAllGroups] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -63,8 +65,32 @@ export default function BookmarksManager({ isOpen, onClose }) {
       });
       setErrorMessage("");
       setSearchQuery("");
+      setGroupNameQuery("");
     }
   }, [isOpen]);
+
+  // Sync groupNameQuery with formData.groupName when formData changes externally (e.g., when editing)
+  useEffect(() => {
+    setGroupNameQuery(formData.groupName);
+  }, [formData.groupName]);
+
+  // Get list of existing group names
+  const existingGroups = useMemo(() => {
+    if (!bookmarks) return [];
+    return bookmarks.map((group) => group.name).filter(Boolean);
+  }, [bookmarks]);
+
+  // Filter groups for the combobox
+  const filteredGroups = useMemo(() => {
+    // Show all groups when dropdown is first opened or when query is empty
+    if (showAllGroups || !groupNameQuery || !groupNameQuery.trim()) {
+      return existingGroups;
+    }
+    const query = groupNameQuery.toLowerCase().trim();
+    return existingGroups.filter((groupName) =>
+      groupName.toLowerCase().includes(query)
+    );
+  }, [existingGroups, groupNameQuery, showAllGroups]);
 
   // Filter bookmarks based on search query
   const filteredBookmarks = useMemo(() => {
@@ -116,6 +142,7 @@ export default function BookmarksManager({ isOpen, onClose }) {
       description: "",
     });
     setErrorMessage("");
+    setGroupNameQuery("");
   };
 
   const handleEdit = (groupName, bookmark) => {
@@ -406,14 +433,98 @@ export default function BookmarksManager({ isOpen, onClose }) {
                           <label className="block text-sm font-medium text-theme-700 dark:text-theme-300 mb-1">
                             Group Name *
                           </label>
-                          <input
-                            type="text"
-                            name="groupName"
+                          <Combobox
                             value={formData.groupName}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 rounded-md border border-theme-300 dark:border-theme-600 bg-theme-100 dark:bg-theme-900 text-theme-900 dark:text-theme-100 focus:outline-none focus:ring-2 focus:ring-theme-500"
-                            placeholder="e.g., Personal, Work"
-                          />
+                            onChange={(value) => {
+                              setFormData((prev) => ({ ...prev, groupName: value }));
+                              setGroupNameQuery(value || "");
+                              setShowAllGroups(false);
+                              setErrorMessage("");
+                            }}
+                          >
+                            {({ open }) => {
+                              // Show all groups when dropdown opens (only set if not already set to avoid re-renders)
+                              if (open && !showAllGroups) {
+                                // Use setTimeout to avoid setting state during render
+                                setTimeout(() => setShowAllGroups(true), 0);
+                              } else if (!open && showAllGroups) {
+                                setTimeout(() => setShowAllGroups(false), 0);
+                              }
+
+                              return (
+                                <div className="relative">
+                                  <Combobox.Input
+                                    className="w-full px-3 py-2 rounded-md border border-theme-300 dark:border-theme-600 bg-theme-100 dark:bg-theme-900 text-theme-900 dark:text-theme-100 focus:outline-none focus:ring-2 focus:ring-theme-500"
+                                    displayValue={(value) => value || ""}
+                                    onChange={(event) => {
+                                      const value = event.target.value;
+                                      setGroupNameQuery(value);
+                                      setFormData((prev) => ({ ...prev, groupName: value }));
+                                      setShowAllGroups(false); // Start filtering when user types
+                                      setErrorMessage("");
+                                    }}
+                                    placeholder="e.g., Personal, Work"
+                                  />
+                                  <Combobox.Button
+                                    onClick={() => {
+                                      setShowAllGroups(true);
+                                    }}
+                                    className="absolute inset-y-0 right-0 flex items-center pr-2"
+                                  >
+                                    <MdKeyboardArrowDown
+                                      className="h-5 w-5 text-theme-400"
+                                      aria-hidden="true"
+                                    />
+                                  </Combobox.Button>
+                                  <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-theme-50 dark:bg-theme-800 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                    {filteredGroups.length === 0 && groupNameQuery && groupNameQuery.trim() !== "" ? (
+                                      <div className="relative cursor-default select-none px-4 py-2 text-theme-700 dark:text-theme-300">
+                                        Create new group: "{groupNameQuery}"
+                                      </div>
+                                    ) : (
+                                      filteredGroups.map((groupName) => (
+                                        <Combobox.Option
+                                          key={groupName}
+                                          value={groupName}
+                                          className={({ active }) =>
+                                            classNames(
+                                              "relative cursor-default select-none py-2 pl-10 pr-4",
+                                              active
+                                                ? "bg-theme-600 text-white"
+                                                : "text-theme-900 dark:text-theme-200"
+                                            )
+                                          }
+                                        >
+                                          {({ selected, active }) => (
+                                            <>
+                                              <span
+                                                className={classNames(
+                                                  "block truncate",
+                                                  selected ? "font-medium" : "font-normal"
+                                                )}
+                                              >
+                                                {groupName}
+                                              </span>
+                                              {selected ? (
+                                                <span
+                                                  className={classNames(
+                                                    "absolute inset-y-0 left-0 flex items-center pl-3",
+                                                    active ? "text-white" : "text-theme-600"
+                                                  )}
+                                                >
+                                                  <MdCheck className="h-5 w-5" aria-hidden="true" />
+                                                </span>
+                                              ) : null}
+                                            </>
+                                          )}
+                                        </Combobox.Option>
+                                      ))
+                                    )}
+                                  </Combobox.Options>
+                                </div>
+                              );
+                            }}
+                          </Combobox>
                         </div>
 
                         <div>
