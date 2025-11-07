@@ -16,6 +16,7 @@ import { useRouter } from "next/router";
 import Script from "next/script";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { BiError } from "react-icons/bi";
+import { MdBookmarks } from "react-icons/md";
 import useSWR, { SWRConfig } from "swr";
 import { ColorContext } from "utils/contexts/color";
 import { SettingsContext } from "utils/contexts/settings";
@@ -299,6 +300,19 @@ function Home({ initialSettings }) {
 
     return (
       <>
+        <div key="manage-bookmarks-button" className="m-5 sm:m-9 sm:mt-4 sm:mb-0 flex justify-start">
+          <button
+            onClick={() => setBookmarksManagerOpen(true)}
+            className={classNames(
+              settings.cardBlur !== undefined && `backdrop-blur${settings.cardBlur.length ? "-" : ""}${settings.cardBlur}`,
+              "flex items-center gap-2 px-3 py-1.5 text-sm rounded-md font-medium text-theme-600 dark:text-theme-300 dark:hover:text-theme-200 shadow-md shadow-theme-900/10 dark:shadow-theme-900/20 hover:bg-theme-300/20 dark:hover:bg-white/10 transition-all cursor-pointer"
+            )}
+            title="Manage Bookmarks"
+          >
+            <MdBookmarks className="w-4 h-4" />
+            Manage Bookmarks
+          </button>
+        </div>
         {tabs.length > 0 && (
           <div key="tabs" id="tabs" className="m-5 sm:m-9 sm:mt-4 sm:mb-0">
             <ul
@@ -358,29 +372,6 @@ function Home({ initialSettings }) {
           </div>
         )}
         <div key="bookmarks" id="bookmarks" className="flex flex-wrap m-4 sm:m-8 sm:mt-4 items-start mb-2">
-          <div className="w-full flex justify-end mb-2">
-            <button
-              onClick={() => setBookmarksManagerOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-theme-200/50 dark:bg-theme-900/20 hover:bg-theme-300/50 dark:hover:bg-theme-900/40 text-theme-700 dark:text-theme-200 transition-colors"
-              title="Manage Bookmarks"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
-              Manage Bookmarks
-            </button>
-          </div>
           {bookmarkGroups?.length > 0 &&
             bookmarkGroups.map((group) => (
               <BookmarksGroup

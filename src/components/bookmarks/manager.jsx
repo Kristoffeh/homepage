@@ -638,7 +638,7 @@ export default function BookmarksManager({ isOpen, onClose }) {
                         ) : filteredBookmarks && filteredBookmarks.length > 0 ? (
                           filteredBookmarks.map((group) => (
                             <div key={group.name} className="border border-theme-200 dark:border-theme-700 rounded-md">
-                              <div className="p-2 bg-theme-100 dark:bg-theme-900 border-b border-theme-200 dark:border-theme-700">
+                              <div className="p-2 bg-theme-100 dark:bg-theme-900 border-b border-theme-200 dark:border-theme-700 rounded-t-md">
                                 <h4 className="font-medium text-theme-800 dark:text-theme-200">{group.name}</h4>
                               </div>
                               <div className="p-2 space-y-1">
