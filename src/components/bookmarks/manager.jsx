@@ -1,7 +1,7 @@
 import { Dialog, Transition, Combobox } from "@headlessui/react";
 import classNames from "classnames";
 import { Fragment, useState, useEffect, useMemo } from "react";
-import { MdClose, MdAdd, MdEdit, MdDelete, MdSave, MdSearch, MdCheck, MdKeyboardArrowDown, MdDragHandle } from "react-icons/md";
+import { MdClose, MdAdd, MdEdit, MdDelete, MdSave, MdSearch, MdCheck, MdKeyboardArrowDown, MdKeyboardArrowRight, MdDragHandle } from "react-icons/md";
 import useSWR, { mutate } from "swr";
 
 // Fetcher function for SWR
@@ -53,6 +53,7 @@ export default function BookmarksManager({ isOpen, onClose }) {
   const [showAllGroups, setShowAllGroups] = useState(false);
   const [draggedBookmark, setDraggedBookmark] = useState(null);
   const [draggedOverIndex, setDraggedOverIndex] = useState(null);
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
 
   useEffect(() => {
     if (!isOpen) {
@@ -70,6 +71,7 @@ export default function BookmarksManager({ isOpen, onClose }) {
       setGroupNameQuery("");
       setDraggedBookmark(null);
       setDraggedOverIndex(null);
+      setCollapsedGroups(new Set());
     }
   }, [isOpen]);
 
@@ -77,6 +79,14 @@ export default function BookmarksManager({ isOpen, onClose }) {
   useEffect(() => {
     setGroupNameQuery(formData.groupName);
   }, [formData.groupName]);
+
+  // Collapse all groups by default when bookmarks are loaded
+  useEffect(() => {
+    if (isOpen && bookmarks && bookmarks.length > 0 && collapsedGroups.size === 0) {
+      const allGroupNames = new Set(bookmarks.map((group) => group.name).filter(Boolean));
+      setCollapsedGroups(allGroupNames);
+    }
+  }, [isOpen, bookmarks, collapsedGroups.size]);
 
   // Get list of existing group names
   const existingGroups = useMemo(() => {
@@ -679,11 +689,39 @@ export default function BookmarksManager({ isOpen, onClose }) {
                             Failed to load bookmarks. Please try again.
                           </div>
                         ) : filteredBookmarks && filteredBookmarks.length > 0 ? (
-                          filteredBookmarks.map((group) => (
+                          filteredBookmarks.map((group) => {
+                            const isCollapsed = collapsedGroups.has(group.name);
+                            return (
                             <div key={group.name} className="border border-theme-200 dark:border-theme-700 rounded-md">
-                              <div className="p-2 bg-theme-100 dark:bg-theme-900 border-b border-theme-200 dark:border-theme-700 rounded-t-md">
-                                <h4 className="font-medium text-theme-800 dark:text-theme-200">{group.name}</h4>
+                              <div 
+                                className={classNames(
+                                  "p-2 bg-theme-100 dark:bg-theme-900 cursor-pointer hover:bg-theme-200 dark:hover:bg-theme-800 transition-colors",
+                                  isCollapsed 
+                                    ? "rounded-md" 
+                                    : "border-b border-theme-200 dark:border-theme-700 rounded-t-md"
+                                )}
+                                onClick={() => {
+                                  setCollapsedGroups(prev => {
+                                    const newSet = new Set(prev);
+                                    if (newSet.has(group.name)) {
+                                      newSet.delete(group.name);
+                                    } else {
+                                      newSet.add(group.name);
+                                    }
+                                    return newSet;
+                                  });
+                                }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {isCollapsed ? (
+                                    <MdKeyboardArrowRight className="w-5 h-5 text-theme-600 dark:text-theme-400" />
+                                  ) : (
+                                    <MdKeyboardArrowDown className="w-5 h-5 text-theme-600 dark:text-theme-400" />
+                                  )}
+                                  <h4 className="font-medium text-theme-800 dark:text-theme-200">{group.name}</h4>
+                                </div>
                               </div>
+                              {!isCollapsed && (
                               <div className="p-2 space-y-1">
                                 {group.bookmarks && group.bookmarks.length > 0 ? (
                                   group.bookmarks.map((bookmark, bookmarkIndex) => {
@@ -816,8 +854,10 @@ export default function BookmarksManager({ isOpen, onClose }) {
                                   </div>
                                 )}
                               </div>
+                              )}
                             </div>
-                          ))
+                            );
+                          })
                         ) : searchQuery.trim() ? (
                           <div className="text-center text-theme-500 dark:text-theme-400 p-4">
                             No bookmarks found matching "{searchQuery}"
