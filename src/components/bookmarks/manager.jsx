@@ -186,15 +186,17 @@ export default function BookmarksManager({ isOpen, onClose }) {
 
       if (editingBookmark) {
         // Update existing bookmark
+        // Always include optional fields when editing - send empty string to clear them
+        // This ensures JSON.stringify includes them in the request body (undefined values are omitted)
         const requestBody = {
           groupName: editingBookmark.groupName,
           bookmarkName: editingBookmark.bookmarkName,
           newGroupName: groupName !== editingBookmark.groupName ? groupName : undefined,
           newBookmarkName: bookmarkName !== editingBookmark.bookmarkName ? bookmarkName : undefined,
           href,
-          abbr: abbr.trim() || undefined,
-          icon: icon.trim() || undefined,
-          description: description.trim() || undefined,
+          abbr: abbr.trim() || "", // Send empty string to clear, not undefined
+          icon: icon.trim() || "", // Send empty string to clear, not undefined
+          description: description.trim() || "", // Send empty string to clear, not undefined
         };
 
         console.log("Sending PUT request:", requestBody);
