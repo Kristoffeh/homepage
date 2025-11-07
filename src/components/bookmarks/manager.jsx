@@ -761,10 +761,10 @@ export default function BookmarksManager({ isOpen, onClose }) {
                                           setDraggedOverIndex(null);
                                         }}
                                         className={classNames(
-                                          "flex items-center justify-between p-2 rounded hover:bg-theme-100 dark:hover:bg-theme-900 transition-colors",
+                                          "flex items-center justify-between p-2 rounded hover:bg-theme-100 dark:hover:bg-theme-900 transition-colors relative",
                                           canDrag ? "cursor-move" : "cursor-default",
                                           isDragging && "opacity-50",
-                                          isDraggedOver && "bg-theme-200 dark:bg-theme-800 border-2 border-theme-500 dark:border-theme-400"
+                                          isDraggedOver && "border-t-2 border-white"
                                         )}
                                       >
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
