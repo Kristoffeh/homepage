@@ -532,7 +532,7 @@ export default function BookmarksManager({ isOpen, onClose }) {
                                   <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-theme-50 dark:bg-theme-800 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                                     {filteredGroups.length === 0 && groupNameQuery && groupNameQuery.trim() !== "" ? (
                                       <div className="relative cursor-default select-none px-4 py-2 text-theme-700 dark:text-theme-300">
-                                        Create new group: "{groupNameQuery}"
+                                        Create new group: &quot;{groupNameQuery}&quot;
                                       </div>
                                     ) : (
                                       filteredGroups.map((groupName) => (
@@ -860,7 +860,7 @@ export default function BookmarksManager({ isOpen, onClose }) {
                           })
                         ) : searchQuery.trim() ? (
                           <div className="text-center text-theme-500 dark:text-theme-400 p-4">
-                            No bookmarks found matching "{searchQuery}"
+                            No bookmarks found matching &quot;{searchQuery}&quot;
                           </div>
                         ) : (
                           <div className="text-center text-theme-500 dark:text-theme-400 p-4">

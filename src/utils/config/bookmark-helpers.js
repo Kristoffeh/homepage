@@ -1,9 +1,11 @@
 import { promises as fs } from "fs";
 import path from "path";
+
 import yaml from "js-yaml";
 
-import checkAndCopyConfig, { CONF_DIR } from "utils/config/config";
 import { bookmarksResponse } from "./api-response";
+
+import checkAndCopyConfig, { CONF_DIR } from "utils/config/config";
 
 /**
  * Converts the bookmarks array structure back to YAML format
