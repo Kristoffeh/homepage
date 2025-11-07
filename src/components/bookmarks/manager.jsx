@@ -1,7 +1,7 @@
 import { Dialog, Transition, Combobox } from "@headlessui/react";
 import classNames from "classnames";
 import { Fragment, useState, useEffect, useMemo } from "react";
-import { MdClose, MdAdd, MdEdit, MdDelete, MdSave, MdSearch, MdCheck, MdKeyboardArrowDown } from "react-icons/md";
+import { MdClose, MdAdd, MdEdit, MdDelete, MdSave, MdSearch, MdCheck, MdKeyboardArrowDown, MdDragHandle } from "react-icons/md";
 import useSWR, { mutate } from "swr";
 
 // Fetcher function for SWR
@@ -51,6 +51,8 @@ export default function BookmarksManager({ isOpen, onClose }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [groupNameQuery, setGroupNameQuery] = useState("");
   const [showAllGroups, setShowAllGroups] = useState(false);
+  const [draggedBookmark, setDraggedBookmark] = useState(null);
+  const [draggedOverIndex, setDraggedOverIndex] = useState(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -66,6 +68,8 @@ export default function BookmarksManager({ isOpen, onClose }) {
       setErrorMessage("");
       setSearchQuery("");
       setGroupNameQuery("");
+      setDraggedBookmark(null);
+      setDraggedOverIndex(null);
     }
   }, [isOpen]);
 
@@ -335,6 +339,43 @@ export default function BookmarksManager({ isOpen, onClose }) {
       if (editingBookmark && editingBookmark.groupName === groupName && editingBookmark.bookmarkName === bookmarkName) {
         handleAdd();
       }
+    } catch (err) {
+      setErrorMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReorder = async (groupName, fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return;
+
+    setLoading(true);
+    setErrorMessage("");
+
+    try {
+      const apiUrl = window.location.origin + "/api/bookmarks";
+      const response = await fetch(apiUrl, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupName, fromIndex, toIndex }),
+        credentials: "same-origin",
+      });
+
+      if (!response.ok) {
+        let errorMessage = "Failed to reorder bookmark";
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (parseError) {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Refresh bookmarks data - force revalidation
+      await mutateBookmarks();
+      // Also trigger global cache invalidation for homepage
+      await mutate("/api/bookmarks");
     } catch (err) {
       setErrorMessage(err.message);
     } finally {
@@ -643,37 +684,130 @@ export default function BookmarksManager({ isOpen, onClose }) {
                               </div>
                               <div className="p-2 space-y-1">
                                 {group.bookmarks && group.bookmarks.length > 0 ? (
-                                  group.bookmarks.map((bookmark) => (
-                                    <div
-                                      key={`${group.name}-${bookmark.name}-${bookmark.href}`}
-                                      className="flex items-center justify-between p-2 rounded hover:bg-theme-100 dark:hover:bg-theme-900"
-                                    >
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-theme-800 dark:text-theme-200 truncate">
-                                          {bookmark.name}
+                                  group.bookmarks.map((bookmark, bookmarkIndex) => {
+                                    const isDragging = draggedBookmark?.groupName === group.name && draggedBookmark?.bookmarkIndex === bookmarkIndex;
+                                    const isDraggedOver = draggedOverIndex !== null && draggedOverIndex.groupName === group.name && draggedOverIndex.bookmarkIndex === bookmarkIndex;
+                                    const canDrag = !searchQuery.trim(); // Disable dragging when search is active
+                                    
+                                    return (
+                                      <div
+                                        key={`${group.name}-${bookmark.name}-${bookmark.href}`}
+                                        draggable={canDrag}
+                                        onDragStart={(e) => {
+                                          if (!canDrag) {
+                                            e.preventDefault();
+                                            return;
+                                          }
+                                          // Find the actual index in the original bookmarks array
+                                          const originalGroup = bookmarks?.find((g) => g.name === group.name);
+                                          if (!originalGroup) {
+                                            e.preventDefault();
+                                            return;
+                                          }
+                                          const actualIndex = originalGroup.bookmarks.findIndex((b) => 
+                                            b.name === bookmark.name && b.href === bookmark.href
+                                          );
+                                          if (actualIndex === -1) {
+                                            e.preventDefault();
+                                            return;
+                                          }
+                                          setDraggedBookmark({ groupName: group.name, bookmarkIndex: actualIndex });
+                                          e.dataTransfer.effectAllowed = "move";
+                                          e.dataTransfer.setData("text/html", "");
+                                        }}
+                                        onDragOver={(e) => {
+                                          e.preventDefault();
+                                          e.dataTransfer.dropEffect = "move";
+                                          if (draggedBookmark && draggedBookmark.groupName === group.name) {
+                                            if (!draggedOverIndex || draggedOverIndex.groupName !== group.name || draggedOverIndex.bookmarkIndex !== bookmarkIndex) {
+                                              setDraggedOverIndex({ groupName: group.name, bookmarkIndex });
+                                            }
+                                          }
+                                        }}
+                                        onDragLeave={(e) => {
+                                          // Only clear if we're leaving the element entirely
+                                          if (!e.currentTarget.contains(e.relatedTarget)) {
+                                            setDraggedOverIndex(null);
+                                          }
+                                        }}
+                                        onDrop={(e) => {
+                                          e.preventDefault();
+                                          if (draggedBookmark && draggedBookmark.groupName === group.name && canDrag) {
+                                            // Find the actual indices in the original bookmarks array
+                                            const originalGroup = bookmarks?.find((g) => g.name === group.name);
+                                            if (!originalGroup) return;
+                                            
+                                            const draggedBookmarkObj = originalGroup.bookmarks[draggedBookmark.bookmarkIndex];
+                                            const targetBookmarkObj = bookmark;
+                                            
+                                            const fromIndex = originalGroup.bookmarks.findIndex((b) => 
+                                              b.name === draggedBookmarkObj.name && b.href === draggedBookmarkObj.href
+                                            );
+                                            const toIndex = originalGroup.bookmarks.findIndex((b) => 
+                                              b.name === targetBookmarkObj.name && b.href === targetBookmarkObj.href
+                                            );
+                                            
+                                            if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
+                                              handleReorder(group.name, fromIndex, toIndex);
+                                            }
+                                          }
+                                          setDraggedBookmark(null);
+                                          setDraggedOverIndex(null);
+                                        }}
+                                        onDragEnd={() => {
+                                          setDraggedBookmark(null);
+                                          setDraggedOverIndex(null);
+                                        }}
+                                        className={classNames(
+                                          "flex items-center justify-between p-2 rounded hover:bg-theme-100 dark:hover:bg-theme-900 transition-colors",
+                                          canDrag ? "cursor-move" : "cursor-default",
+                                          isDragging && "opacity-50",
+                                          isDraggedOver && "bg-theme-200 dark:bg-theme-800 border-2 border-theme-500 dark:border-theme-400"
+                                        )}
+                                      >
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                          <div
+                                            className={classNames(
+                                              "cursor-grab active:cursor-grabbing",
+                                              canDrag 
+                                                ? "text-theme-400 dark:text-theme-500 hover:text-theme-600 dark:hover:text-theme-300" 
+                                                : "text-theme-300 dark:text-theme-600 cursor-not-allowed"
+                                            )}
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                            title={canDrag ? "Drag to reorder" : "Search must be cleared to reorder"}
+                                          >
+                                            <MdDragHandle className="w-5 h-5" />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="font-medium text-theme-800 dark:text-theme-200 truncate">
+                                              {bookmark.name}
+                                            </div>
+                                            <div className="text-sm text-theme-600 dark:text-theme-400 truncate">
+                                              {bookmark.href}
+                                            </div>
+                                          </div>
                                         </div>
-                                        <div className="text-sm text-theme-600 dark:text-theme-400 truncate">
-                                          {bookmark.href}
+                                        <div className="flex items-center gap-2 ml-2">
+                                          <button
+                                            onClick={() => handleEdit(group.name, bookmark)}
+                                            className="p-1.5 rounded text-theme-600 dark:text-theme-400 hover:bg-theme-200 dark:hover:bg-theme-700"
+                                            title="Edit"
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                          >
+                                            <MdEdit className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDelete(group.name, bookmark.name)}
+                                            className="p-1.5 rounded text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
+                                            title="Delete"
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                          >
+                                            <MdDelete className="w-4 h-4" />
+                                          </button>
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <button
-                                          onClick={() => handleEdit(group.name, bookmark)}
-                                          className="p-1.5 rounded text-theme-600 dark:text-theme-400 hover:bg-theme-200 dark:hover:bg-theme-700"
-                                          title="Edit"
-                                        >
-                                          <MdEdit className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                          onClick={() => handleDelete(group.name, bookmark.name)}
-                                          className="p-1.5 rounded text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
-                                          title="Delete"
-                                        >
-                                          <MdDelete className="w-4 h-4" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ))
+                                    );
+                                  })
                                 ) : (
                                   <div className="text-sm text-theme-500 dark:text-theme-400 p-2">
                                     No bookmarks in this group

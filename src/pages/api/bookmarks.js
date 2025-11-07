@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     // Handle CORS preflight
     if (req.method === "OPTIONS") {
       res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
       return res.status(200).end();
     }
@@ -160,6 +160,38 @@ export default async function handler(req, res) {
           bookmarks.splice(groupIndex, 1);
         }
       }
+
+      await saveBookmarks(bookmarks);
+      return res.json({ success: true });
+    }
+
+    if (req.method === "PATCH") {
+      // Reorder bookmarks within a group
+      logger.debug("PATCH body:", JSON.stringify(req.body));
+      const { groupName, fromIndex, toIndex } = req.body || {};
+
+      if (groupName === undefined || fromIndex === undefined || toIndex === undefined) {
+        return res.status(400).json({ error: "groupName, fromIndex, and toIndex are required" });
+      }
+
+      if (fromIndex === toIndex) {
+        return res.status(200).json({ success: true });
+      }
+
+      const bookmarks = await bookmarksResponse();
+      const group = findBookmarkGroup(bookmarks, groupName);
+
+      if (!group) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+
+      if (fromIndex < 0 || fromIndex >= group.bookmarks.length || toIndex < 0 || toIndex >= group.bookmarks.length) {
+        return res.status(400).json({ error: "Invalid index range" });
+      }
+
+      // Move the bookmark from fromIndex to toIndex
+      const [movedBookmark] = group.bookmarks.splice(fromIndex, 1);
+      group.bookmarks.splice(toIndex, 0, movedBookmark);
 
       await saveBookmarks(bookmarks);
       return res.json({ success: true });
